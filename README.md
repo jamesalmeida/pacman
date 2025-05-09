@@ -2,7 +2,7 @@
 
 ## Description
 
-Pac-Man clone that runs in the browser.
+Pac-Man clone that runs in the browser. Wanted to see how far I can take it with everything in just a single HTML file. Uses HTML, CSS, Javascript. No libraries. 
 
 ## Setup and Installation
 
