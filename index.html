@@ -211,6 +211,28 @@
                     }
                 }
             }
+
+            // Draw the white line for the ghost house gate
+            const gateLineWidth = 3; // Define line width for clarity and reuse
+            const halfGateLineWidth = gateLineWidth / 2; // Corrected: This should be half of the actual line width
+            
+            // Calculate Y position so the top of the line is flush with the top of the side walls.
+            // The side walls' top edge is at y = 8 * tileSize.
+            // The line's path is its center. To make its top edge align with 8*tileSize,
+            // the center of the path needs to be at (8*tileSize) + halfGateLineWidth.
+            const gateYPosition = (8 * tileSize) + halfGateLineWidth;
+            
+            // Calculate X positions so the ends of the line are flush with the inner edges of side walls
+            // The path starts/ends need to be inset/outset by half the line width.
+            const gateStartX = (9 * tileSize) + halfGateLineWidth;
+            const gateEndX = (12 * tileSize) - halfGateLineWidth;
+
+            ctx.beginPath();
+            ctx.moveTo(gateStartX, gateYPosition);
+            ctx.lineTo(gateEndX, gateYPosition);
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = gateLineWidth;
+            ctx.stroke();
         }
         
         function drawPacman() {
