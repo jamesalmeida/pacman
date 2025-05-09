@@ -114,14 +114,19 @@
         let mouthFrameCounter = 0; // For controlling mouth animation speed
         const MOUTH_ANIMATION_FRAMES = 10; // Toggle mouth every 10 frames (10 * 20ms = 200ms)
         let extraLives = 5; // Initialize extraLives (e.g., 5 extra lives means 6 total chances)
-        let powerUpActive = false;
-        let powerUpTimer = 0;
-        const powerUpDuration = 10000; // 10 seconds
-        let powerPelletVisible = true; // Added for blinking effect
-        let powerPelletBlinkTimer = 0; // Timer for blinking
-        const POWER_PELLET_BLINK_INTERVAL = 400; // Blink every 0.5 second (500ms)
+        let energizerActive = false;
+        let energizerTimer = 0;
+        const energizerDuration = 10000; // 10 seconds
+        const ENERGIZER_FLASH_START_TIME = 7000; // Start flashing 3 seconds before energizer ends (10000 - 3000)
+        const GHOST_FLASH_INTERVAL = 200; // Flash every 200ms
+        let ghostFlashOn = false; // State for ghost flashing
+        let lastGhostFlashTime = 0;
+        let energizerVisible = true; // Added for blinking effect
+        let energizerBlinkTimer = 0; // Timer for blinking
+        const ENERGIZER_BLINK_INTERVAL = 400; // Blink every 0.5 second (500ms)
+        let consecutiveGhostsEaten = 0;
 
-        // Maze layout (1 = wall, 0 = path/dot, 2 = eaten dot, 3 = ghost spawn point, 4 = power pellet)
+        // Maze layout (1 = wall, 0 = path/dot, 2 = eaten dot, 3 = ghost spawn point, 4 = Energizer)
         const originalMaze = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
             [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
@@ -154,12 +159,14 @@
         maze[15][19] = 4;
         
         const tileSize = 20; // Updated tileSize for 20x20 grid
+        const GHOST_NORMAL_SPEED = 1.5;
+        const GHOST_SCARED_SPEED = 0.75; // Slower speed when scared
         let pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 }; // Pac-Man's pixel position, speed, and intended next direction
         let ghosts = [ // Updated ghosts with colors and new starting positions
-            { x: 9 * tileSize, y: 8 * tileSize, color: 'red', speed: 1.5, dir: null },
-            { x: 9 * tileSize, y: 9 * tileSize, color: 'pink', speed: 1.5, dir: null },
-            { x: 10 * tileSize, y: 9 * tileSize, color: 'cyan', speed: 1.5, dir: null },
-            { x: 10 * tileSize, y: 8 * tileSize, color: 'orange', speed: 1.5, dir: null }
+            { x: 9 * tileSize, y: 8 * tileSize, color: 'red', speed: GHOST_NORMAL_SPEED, dir: null },
+            { x: 9 * tileSize, y: 9 * tileSize, color: 'pink', speed: GHOST_NORMAL_SPEED, dir: null },
+            { x: 10 * tileSize, y: 9 * tileSize, color: 'cyan', speed: GHOST_NORMAL_SPEED, dir: null },
+            { x: 10 * tileSize, y: 8 * tileSize, color: 'orange', speed: GHOST_NORMAL_SPEED, dir: null }
         ];
         let score = 0;
         let highScore = parseInt(localStorage.getItem('pacmanHighScore')) || 0; // Load high score or default to 0
@@ -175,7 +182,7 @@
                         ctx.beginPath();
                         ctx.arc(x * tileSize + tileSize/2, y * tileSize + tileSize/2, 2, 0, Math.PI * 2);
                         ctx.fill();
-                    } else if (maze[y][x] === 4 && powerPelletVisible) {
+                    } else if (maze[y][x] === 4 && energizerVisible) {
                         ctx.fillStyle = 'white';
                         ctx.beginPath();
                         ctx.arc(x * tileSize + tileSize/2, y * tileSize + tileSize/2, 6, 0, Math.PI * 2);
@@ -233,11 +240,20 @@
         function drawGhosts() {
             ghosts.forEach(ghost => {
                 let ghostFillStyle = ghost.color; // Normal color by default
-                let isVulnerableLooking = false; // Flag for vulnerable appearance
+                let isScaredLooking = false; // Flag for scared appearance
 
-                if (powerUpActive && ghost.isVulnerable && !ghost.isEyes) {
-                    ghostFillStyle = 'blue'; // Vulnerable ghost color
-                    isVulnerableLooking = true;
+                if (energizerActive && ghost.isScared && !ghost.isEyes) {
+                    isScaredLooking = true; // Mark as scared for mouth drawing logic
+                    // Flashing logic for scared ghosts
+                    if (Date.now() - energizerTimer > ENERGIZER_FLASH_START_TIME) {
+                        if (ghostFlashOn) {
+                            ghostFillStyle = 'white'; // Flash white
+                        } else {
+                            ghostFillStyle = 'blue'; // Scared blue
+                        }
+                    } else {
+                        ghostFillStyle = 'blue'; // Solid blue before flashing period
+                    }
                 } else if (ghost.isEyes) {
                     ghostFillStyle = 'white'; // Eyes only when eaten
                 }
@@ -300,12 +316,12 @@
                     ctx.closePath();
                     ctx.fill(); 
 
-                    // Draw eyes (and mouth if vulnerable)
+                    // Draw eyes (and mouth if scared)
                     const eyeRadius = tileSize / 8;
                     const eyeOffsetX = tileSize / 4;
                     const eyeBaseY = ghost.y + tileSize / 2.5; 
                     
-                    // Common white part for both eyes - must be drawn for both normal and vulnerable
+                    // Common white part for both eyes - must be drawn for both normal and scared
                     ctx.fillStyle = 'white';
                     // Left eye (white part)
                     ctx.beginPath();
@@ -317,8 +333,8 @@
                     ctx.arc(ghost.x + tileSize - eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
 
-                    if (isVulnerableLooking) {
-                        // Draw vulnerable mouth (no pupils)
+                    if (isScaredLooking) {
+                        // Draw scared mouth (no pupils)
                         ctx.strokeStyle = 'white'; 
                         ctx.lineWidth = 1; // Sharp pixel line
                         ctx.beginPath();
@@ -392,12 +408,15 @@
         function update() {
             if (window.gameOver) return;
 
-            // Check for Power-Up Expiration
-            if (powerUpActive && (Date.now() - powerUpTimer > powerUpDuration)) {
-                powerUpActive = false;
-                powerUpTimer = 0; // Reset timer
+            // Check for Energizer Expiration
+            if (energizerActive && (Date.now() - energizerTimer > energizerDuration)) {
+                energizerActive = false;
+                energizerTimer = 0; // Reset timer
+                consecutiveGhostsEaten = 0; // Reset counter when energizer wears off
+                ghostFlashOn = false; // Reset flash state
                 ghosts.forEach(ghost => {
-                    ghost.isVulnerable = false; // Revert ghosts to normal (not vulnerable)
+                    ghost.isScared = false; // Revert ghosts to normal (not scared)
+                    ghost.speed = GHOST_NORMAL_SPEED; // Reset speed
                     // Note: isEyes state is handled separately when ghosts are eaten and return home
                 });
             }
@@ -409,11 +428,21 @@
                 mouthFrameCounter = 0;
             }
 
-            // Power Pellet Blinking Logic
+            // Energizer Blinking Logic
             const currentTime = Date.now();
-            if (currentTime - powerPelletBlinkTimer > POWER_PELLET_BLINK_INTERVAL) {
-                powerPelletVisible = !powerPelletVisible;
-                powerPelletBlinkTimer = currentTime;
+            if (currentTime - energizerBlinkTimer > ENERGIZER_BLINK_INTERVAL) {
+                energizerVisible = !energizerVisible;
+                energizerBlinkTimer = currentTime;
+            }
+
+            // Ghost Flashing Logic (when energizer is active and about to end)
+            if (energizerActive && Date.now() - energizerTimer > ENERGIZER_FLASH_START_TIME) {
+                if (currentTime - lastGhostFlashTime > GHOST_FLASH_INTERVAL) {
+                    ghostFlashOn = !ghostFlashOn;
+                    lastGhostFlashTime = currentTime;
+                }
+            } else if (!energizerActive) {
+                ghostFlashOn = false; // Ensure flash is off if energizer is not active
             }
 
             const mazeWidthPx = maze[0].length * tileSize;
@@ -548,14 +577,16 @@
                 if (maze[eatingTileY][eatingTileX] === 0) { // Dot
                     maze[eatingTileY][eatingTileX] = 2; // Mark as eaten
                     score += 10;
-                } else if (maze[eatingTileY][eatingTileX] === 4) { // Power pellet
+                } else if (maze[eatingTileY][eatingTileX] === 4) { // Energizer
                     maze[eatingTileY][eatingTileX] = 2; // Mark as eaten
                     score += 50;
-                    powerUpActive = true;
-                    powerUpTimer = Date.now();
+                    energizerActive = true;
+                    energizerTimer = Date.now();
+                    consecutiveGhostsEaten = 0; // Reset counter when a new energizer is eaten
                     ghosts.forEach(ghost => {
-                        if (!ghost.isEyes) { // Only make non-eaten ghosts vulnerable
-                            ghost.isVulnerable = true;
+                        if (!ghost.isEyes) { // Only make non-eaten ghosts scared
+                            ghost.isScared = true;
+                            ghost.speed = GHOST_SCARED_SPEED; // Slow down when scared
                         }
                     });
                 }
@@ -582,8 +613,9 @@
                         ghost.x = homeTargetX;
                         ghost.y = homeTargetY;
                         ghost.isEyes = false;
-                        ghost.isVulnerable = false; // Ensure respawned ghost is not vulnerable
+                        ghost.isScared = false; // Ensure respawned ghost is not scared
                         ghost.dir = null; // Reset direction
+                        ghost.speed = GHOST_NORMAL_SPEED; // Ensure speed is reset
                     } else {
                         // Move ghost eyes
                         ghost.x += dx;
@@ -637,13 +669,24 @@
                 // Collision with Pac-Man (pixel-based, using a small tolerance)
                 const collisionThreshold = tileSize * 0.75; // If centers are within 3/4 of a tile
                 if (Math.abs(pacman.x - ghost.x) < collisionThreshold && Math.abs(pacman.y - ghost.y) < collisionThreshold && !window.gameOver) {
-                    if (powerUpActive && ghost.isVulnerable && !ghost.isEyes) {
+                    if (energizerActive && ghost.isScared && !ghost.isEyes) {
                         ghost.isEyes = true;
-                        ghost.isVulnerable = false; // Can't be eaten again
-                        score += 200;
+                        ghost.isScared = false; // Can't be eaten again
+                        consecutiveGhostsEaten++;
+                        let bonusPoints = 0;
+                        switch (consecutiveGhostsEaten) {
+                            case 1: bonusPoints = 200; break;
+                            case 2: bonusPoints = 400; break;
+                            case 3: bonusPoints = 800; break;
+                            case 4: bonusPoints = 1600; break;
+                            default: bonusPoints = 1600; // Or some other value for 5th+ ghost
+                        }
+                        score += bonusPoints;
+                        ghost.speed = GHOST_NORMAL_SPEED; // Eyes move at normal speed
                         // No need to move ghost to home here, eye logic will handle it
                     } else if (!ghost.isEyes) {
                         extraLives--;
+                        consecutiveGhostsEaten = 0; // Reset counter if Pac-Man dies
                         if (extraLives >= 0) { // >= 0 because extraLives = 0 means 1 actual life left
                             // Reset Pac-Man's position (pixel-based)
                             pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 };
@@ -654,10 +697,10 @@
                                 else if (g.color === 'cyan') { g.x = 10 * tileSize; g.y = 9 * tileSize; }
                                 else if (g.color === 'orange') { g.x = 10 * tileSize; g.y = 8 * tileSize; }
                                 g.isEyes = false;
-                                g.isVulnerable = false;
+                                g.isScared = false;
                                 g.dir = null;
                                 g.currentMove = null;
-                                g.speed = 1.5; // Ensure speed is reset
+                                g.speed = GHOST_NORMAL_SPEED; // Ensure speed is reset
                             });
                             updateLivesDisplay();
                         } else {
@@ -715,10 +758,10 @@
             
             // Reset ghosts
             ghosts = [
-                { x: 9 * tileSize, y: 8 * tileSize, color: 'red', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null },
-                { x: 9 * tileSize, y: 9 * tileSize, color: 'pink', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null },
-                { x: 10 * tileSize, y: 9 * tileSize, color: 'cyan', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null },
-                { x: 10 * tileSize, y: 8 * tileSize, color: 'orange', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null }
+                { x: 9 * tileSize, y: 8 * tileSize, color: 'red', isEyes: false, isScared: false, dir: null, speed: GHOST_NORMAL_SPEED, currentMove: null },
+                { x: 9 * tileSize, y: 9 * tileSize, color: 'pink', isEyes: false, isScared: false, dir: null, speed: GHOST_NORMAL_SPEED, currentMove: null },
+                { x: 10 * tileSize, y: 9 * tileSize, color: 'cyan', isEyes: false, isScared: false, dir: null, speed: GHOST_NORMAL_SPEED, currentMove: null },
+                { x: 10 * tileSize, y: 8 * tileSize, color: 'orange', isEyes: false, isScared: false, dir: null, speed: GHOST_NORMAL_SPEED, currentMove: null }
             ];
             
             // Reset score
@@ -730,8 +773,10 @@
             
             // Reset game state
             window.gameOver = false;
-            powerUpActive = false;
-            powerUpTimer = 0;
+            energizerActive = false;
+            energizerTimer = 0;
+            consecutiveGhostsEaten = 0;
+            ghostFlashOn = false; // Reset flash state on game reset
             mouthOpen = true; // Reset mouth state
             mouthFrameCounter = 0; // Reset mouth animation counter
             document.getElementById('insertCreditArea').style.display = 'none'; // Hide insert credit text
