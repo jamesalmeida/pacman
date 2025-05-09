@@ -91,6 +91,8 @@
         
         window.gameOver = false; // Initialize gameOver flag
         let mouthOpen = true; // Track if Pac-Man's mouth is open or closed
+        let mouthFrameCounter = 0; // For controlling mouth animation speed
+        const MOUTH_ANIMATION_FRAMES = 10; // Toggle mouth every 10 frames (10 * 20ms = 200ms)
         let lives = 5; // Initialize lives to 3 (including the first life)
         let powerUpActive = false;
         let powerUpTimer = 0;
@@ -130,12 +132,12 @@
         maze[15][19] = 4;
         
         const tileSize = 20; // Updated tileSize for 20x20 grid
-        let pacman = { x: 10, y: 15, dir: null }; // Updated Pac-Man starting position and direction
+        let pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 }; // Pac-Man's pixel position, speed, and intended next direction
         let ghosts = [ // Updated ghosts with colors and new starting positions
-            { x: 9, y: 8, color: 'red' },   
-            { x: 9, y: 9, color: 'pink' },  
-            { x: 10, y: 9, color: 'cyan' }, 
-            { x: 10, y: 8, color: 'orange' } 
+            { x: 9 * tileSize, y: 8 * tileSize, color: 'red', speed: 1.5, dir: null },
+            { x: 9 * tileSize, y: 9 * tileSize, color: 'pink', speed: 1.5, dir: null },
+            { x: 10 * tileSize, y: 9 * tileSize, color: 'cyan', speed: 1.5, dir: null },
+            { x: 10 * tileSize, y: 8 * tileSize, color: 'orange', speed: 1.5, dir: null }
         ];
         let score = 0;
         let highScore = parseInt(localStorage.getItem('pacmanHighScore')) || 0; // Load high score or default to 0
@@ -167,53 +169,56 @@
             
             // Define mouth angles based on direction and mouth state
             let startAngle, endAngle;
+            const currentDir = pacman.dir || 'right'; // Default to right if no direction yet
             
             if (mouthOpen) {
                 // Wide open mouth
-                if (pacman.dir === 'right' || pacman.dir === null) {
+                if (currentDir === 'right') {
                     startAngle = 0.2 * Math.PI;
                     endAngle = 1.8 * Math.PI;
-                } else if (pacman.dir === 'left') {
+                } else if (currentDir === 'left') {
                     startAngle = 1.2 * Math.PI;
                     endAngle = 0.8 * Math.PI; 
-                } else if (pacman.dir === 'up') {
+                } else if (currentDir === 'up') {
                     startAngle = 1.7 * Math.PI;
                     endAngle = 1.3 * Math.PI;
-                } else if (pacman.dir === 'down') {
+                } else if (currentDir === 'down') {
                     startAngle = 0.7 * Math.PI;
                     endAngle = 0.3 * Math.PI;
                 }
             } else {
                 // Almost closed mouth
-                if (pacman.dir === 'right' || pacman.dir === null) {
+                if (currentDir === 'right') {
                     startAngle = 0.05 * Math.PI;
                     endAngle = 1.95 * Math.PI;
-                } else if (pacman.dir === 'left') {
+                } else if (currentDir === 'left') {
                     startAngle = 1.05 * Math.PI;
                     endAngle = 0.95 * Math.PI; 
-                } else if (pacman.dir === 'up') {
+                } else if (currentDir === 'up') {
                     startAngle = 1.55 * Math.PI;
                     endAngle = 1.45 * Math.PI;
-                } else if (pacman.dir === 'down') {
+                } else if (currentDir === 'down') {
                     startAngle = 0.55 * Math.PI;
                     endAngle = 0.45 * Math.PI;
                 }
             }
 
-            ctx.arc(pacman.x * tileSize + tileSize/2, pacman.y * tileSize + tileSize/2, tileSize/2, startAngle, endAngle);
-            ctx.lineTo(pacman.x * tileSize + tileSize/2, pacman.y * tileSize + tileSize/2);
+            ctx.arc(pacman.x + tileSize/2, pacman.y + tileSize/2, tileSize/2, startAngle, endAngle);
+            ctx.lineTo(pacman.x + tileSize/2, pacman.y + tileSize/2);
             ctx.fill();
         }
         
         function drawGhosts() {
             ghosts.forEach(ghost => {
-                if (powerUpActive && !ghost.isEyes) {
-                    ctx.fillStyle = 'blue'; // Turn ghosts blue during power-up
+                let ghostFillStyle = ghost.color; // Normal color by default
+
+                if (powerUpActive && ghost.isVulnerable && !ghost.isEyes) {
+                    ghostFillStyle = 'blue'; // Vulnerable ghost color
                 } else if (ghost.isEyes) {
-                    ctx.fillStyle = 'white'; // Eyes only when eaten
-                } else {
-                    ctx.fillStyle = ghost.color; // Normal color
+                    ghostFillStyle = 'white'; // Eyes only when eaten
                 }
+                ctx.fillStyle = ghostFillStyle;
+
                 const bodyHeight = tileSize * 0.6;
                 const headRadius = tileSize / 2;
 
@@ -221,103 +226,94 @@
                     // Draw only eyes
                     const eyeRadius = tileSize / 8;
                     const eyeOffsetX = tileSize / 4;
-                    const eyeOffsetY = tileSize / 2.5;
+                    // Eyes should be centered on the ghost's pixel position
+                    const eyeBaseY = ghost.y + tileSize / 2 - eyeRadius;
+
 
                     // Left eye
                     ctx.fillStyle = 'white';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + eyeOffsetX, ghost.y * tileSize + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = 'black';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + eyeOffsetX, ghost.y * tileSize + eyeOffsetY, eyeRadius / 2, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + eyeOffsetX, eyeBaseY, eyeRadius / 2, 0, Math.PI * 2);
                     ctx.fill();
 
                     // Right eye
                     ctx.fillStyle = 'white';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + tileSize - eyeOffsetX, ghost.y * tileSize + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + tileSize - eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = 'black';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + tileSize - eyeOffsetX, ghost.y * tileSize + eyeOffsetY, eyeRadius / 2, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + tileSize - eyeOffsetX, eyeBaseY, eyeRadius / 2, 0, Math.PI * 2);
                     ctx.fill();
                 } else {
-                    // New drawing logic for ghost shape with wavy bottom:
-                    const gx = ghost.x * tileSize;
-                    const gy = ghost.y * tileSize;
+                    // Ghost body/head drawing logic using ghost.x and ghost.y directly
+                    const gx = ghost.x;
+                    const gy = ghost.y;
                     const R = tileSize / 2; // headRadius
-                    const bodyOverallHeight = tileSize * 0.6; // effectively the old bodyHeight
-                    const bodyTopY = gy + R; // Y-coordinate where head meets body
+                    const bodyOverallHeight = tileSize * 0.6; 
+                    const bodyTopY = gy + R; 
 
-                    // Define wave geometry
-                    // The waves will take up half the height of the body part below the head
                     const waveEffectHeight = bodyOverallHeight / 3;
                     const upperStraightSkirtHeight = bodyOverallHeight - waveEffectHeight;
 
-                    const wavePeakY = bodyTopY + upperStraightSkirtHeight; // Y-coordinate for the "crests" of the waves (higher points)
-                    const waveValleyY = bodyTopY + bodyOverallHeight;      // Y-coordinate for the "troughs" of the waves (lower points/tips)
+                    const wavePeakY = bodyTopY + upperStraightSkirtHeight; 
+                    const waveValleyY = bodyTopY + bodyOverallHeight;      
 
                     ctx.beginPath();
-                    // Head: top semicircle arc, from (gx, bodyTopY) to (gx + tileSize, bodyTopY)
                     ctx.arc(gx + R, bodyTopY, R, Math.PI, 0);
-
-                    // Current point is (gx + tileSize, bodyTopY)
-                    // Right side of skirt (straight part down to where waves begin)
                     ctx.lineTo(gx + tileSize, wavePeakY);
-
-                    // Wavy bottom: 3 valleys, 2 intermediate peaks. Traverse from right to left.
-                    ctx.lineTo(gx + (5 * tileSize / 6), waveValleyY); // Valley 3 (rightmost)
-                    ctx.lineTo(gx + (2 * tileSize / 3), wavePeakY);   // Peak 2 (using 4/6)
-                    ctx.lineTo(gx + (tileSize / 2), waveValleyY);     // Valley 2 (center, using 3/6)
-                    ctx.lineTo(gx + (tileSize / 3), wavePeakY);       // Peak 1 (using 2/6)
-                    ctx.lineTo(gx + (tileSize / 6), waveValleyY);     // Valley 1 (leftmost)
-                    ctx.lineTo(gx + 0, wavePeakY);                    // Left edge "peak"
-
-                    // Left side of skirt (straight part up to where head arc begins)
+                    ctx.lineTo(gx + (5 * tileSize / 6), waveValleyY); 
+                    ctx.lineTo(gx + (2 * tileSize / 3), wavePeakY);   
+                    ctx.lineTo(gx + (tileSize / 2), waveValleyY);     
+                    ctx.lineTo(gx + (tileSize / 3), wavePeakY);       
+                    ctx.lineTo(gx + (tileSize / 6), waveValleyY);     
+                    ctx.lineTo(gx + 0, wavePeakY);                    
                     ctx.lineTo(gx + 0, bodyTopY);
-
-                    // Close the path (connects the current point (gx, bodyTopY) back to the start of the arc)
                     ctx.closePath();
-                    ctx.fill(); // Fill the entire shape (head + body)
-                    // End of new ghost body/head drawing logic
+                    ctx.fill(); 
 
                     // Draw eyes
                     const eyeRadius = tileSize / 8;
                     const eyeOffsetX = tileSize / 4;
-                    const eyeOffsetY = tileSize / 2.5;
+                    // Adjust eye Y position relative to the top of the ghost's bounding box (ghost.y)
+                    const eyeBaseY = ghost.y + tileSize / 2.5; // Vertically center a bit lower than true center
                     let pupilOffsetX = 0;
                     let pupilOffsetY = 0;
 
-                    // Adjust pupil position based on direction
-                    if (ghost.dir === 'right') {
+                    const currentGhostDir = ghost.dir || 'right'; // Default to right if no direction
+
+                    if (currentGhostDir === 'right') {
                         pupilOffsetX = eyeRadius / 2;
-                    } else if (ghost.dir === 'left') {
+                    } else if (currentGhostDir === 'left') {
                         pupilOffsetX = -eyeRadius / 2;
-                    } else if (ghost.dir === 'up') {
+                    } else if (currentGhostDir === 'up') {
                         pupilOffsetY = -eyeRadius / 2;
-                    } else if (ghost.dir === 'down') {
+                    } else if (currentGhostDir === 'down') {
                         pupilOffsetY = eyeRadius / 2;
                     }
 
                     // Left eye
                     ctx.fillStyle = 'white';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + eyeOffsetX, ghost.y * tileSize + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = 'black';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + eyeOffsetX + pupilOffsetX, ghost.y * tileSize + eyeOffsetY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + eyeOffsetX + pupilOffsetX, eyeBaseY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
                     ctx.fill();
 
                     // Right eye
                     ctx.fillStyle = 'white';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + tileSize - eyeOffsetX, ghost.y * tileSize + eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + tileSize - eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
                     ctx.fillStyle = 'black';
                     ctx.beginPath();
-                    ctx.arc(ghost.x * tileSize + tileSize - eyeOffsetX + pupilOffsetX, ghost.y * tileSize + eyeOffsetY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
+                    ctx.arc(ghost.x + tileSize - eyeOffsetX + pupilOffsetX, eyeBaseY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
                     ctx.fill();
                 }
             });
@@ -348,134 +344,260 @@
         function update() {
             if (window.gameOver) return;
 
-            // Toggle mouth open/closed animation state
-            if (pacman.dir !== null) {
+            // Mouth animation
+            mouthFrameCounter++;
+            if (mouthFrameCounter >= MOUTH_ANIMATION_FRAMES) {
                 mouthOpen = !mouthOpen;
+                mouthFrameCounter = 0;
             }
 
-            const mazeWidth = maze[0].length;
-            const mazeHeight = maze.length;
+            const mazeWidthPx = maze[0].length * tileSize;
+            const mazeHeightPx = maze.length * tileSize;
+            const TILE_CENTER_OFFSET = tileSize / 2;
 
-            // Move Pac-Man
-            let currentPacmanX = pacman.x;
-            let currentPacmanY = pacman.y;
-            let intendedX = pacman.x, intendedY = pacman.y;
+            // --- PAC-MAN MOVEMENT --- 
+            let currentPacmanTileX = Math.floor(pacman.x / tileSize);
+            let currentPacmanTileY = Math.floor(pacman.y / tileSize);
+            let pacmanCenterX = pacman.x + TILE_CENTER_OFFSET;
+            let pacmanCenterY = pacman.y + TILE_CENTER_OFFSET;
 
-            if (pacman.dir === 'right') intendedX++;
-            if (pacman.dir === 'left') intendedX--;
-            if (pacman.dir === 'down') intendedY++;
-            if (pacman.dir === 'up') intendedY--;
+            // Check if Pac-Man is aligned with the grid for turning
+            const isAlignedX = pacman.x % tileSize === 0;
+            const isAlignedY = pacman.y % tileSize === 0;
 
-            // Only proceed if a direction is set and it results in a new intended position
-            if (pacman.dir && (intendedX !== currentPacmanX || intendedY !== currentPacmanY)) {
-                const tunnelY = 9;
+            // Try to change direction if a new direction is queued and Pac-Man is aligned
+            if (pacman.nextDir && isAlignedX && isAlignedY) {
+                let testPixelX = pacman.x;
+                let testPixelY = pacman.y;
+                let testTileX = currentPacmanTileX;
+                let testTileY = currentPacmanTileY;
 
-                let targetX = intendedX;
-                let targetY = intendedY;
+                if (pacman.nextDir === 'left') { testPixelX -= pacman.speed; testTileX--; }
+                else if (pacman.nextDir === 'right') { testPixelX += pacman.speed; testTileX++; }
+                else if (pacman.nextDir === 'up') { testPixelY -= pacman.speed; testTileY--; }
+                else if (pacman.nextDir === 'down') { testPixelY += pacman.speed; testTileY++; }
 
-                if (currentPacmanY === tunnelY && targetY === tunnelY && maze[tunnelY][0] !== 1 && maze[tunnelY][mazeWidth - 1] !== 1) {
-                    if (targetX < 0 && currentPacmanX === 0) {
-                        targetX = mazeWidth - 1;
-                    } else if (targetX >= mazeWidth && currentPacmanX === (mazeWidth - 1)) {
-                        targetX = 0;
-                    }
-                }
-
-                if (targetX >= 0 && targetX < mazeWidth &&
-                    targetY >= 0 && targetY < mazeHeight &&
-                    maze[targetY][targetX] !== 1 && maze[targetY][targetX] !== 3) {
-
-                    pacman.x = targetX;
-                    pacman.y = targetY;
-
-                    if ((pacman.x !== currentPacmanX || pacman.y !== currentPacmanY) && maze[pacman.y][pacman.x] === 0) {
-                        maze[pacman.y][pacman.x] = 2;
-                        score += 10;
-                    } else if ((pacman.x !== currentPacmanX || pacman.y !== currentPacmanY) && maze[pacman.y][pacman.x] === 4) {
-                        maze[pacman.y][pacman.x] = 2;
-                        score += 50;
-                        powerUpActive = true;
-                        powerUpTimer = Date.now();
-                        ghosts.forEach(ghost => {
-                            if (!ghost.isEyes) {
-                                ghost.isVulnerable = true;
-                            }
-                        });
-                    }
+                if (testTileX >= 0 && testTileX < maze[0].length && testTileY >= 0 && testTileY < maze.length &&
+                    maze[testTileY][testTileX] !== 1 && maze[testTileY][testTileX] !== 3) {
+                    pacman.dir = pacman.nextDir;
+                    pacman.nextDir = null;
                 }
             }
 
-            if (powerUpActive && Date.now() - powerUpTimer > powerUpDuration) {
-                powerUpActive = false;
-                ghosts.forEach(ghost => {
-                    if (!ghost.isEyes) {
-                        ghost.isVulnerable = false;
-                    }
-                });
+            let intendedPixelX = pacman.x;
+            let intendedPixelY = pacman.y;
+
+            if (pacman.dir === 'left') intendedPixelX -= pacman.speed;
+            else if (pacman.dir === 'right') intendedPixelX += pacman.speed;
+            else if (pacman.dir === 'up') intendedPixelY -= pacman.speed;
+            else if (pacman.dir === 'down') intendedPixelY += pacman.speed;
+            
+            // Determine the tile Pac-Man is trying to move into
+            let targetTileX = currentPacmanTileX;
+            let targetTileY = currentPacmanTileY;
+
+            if (pacman.dir === 'left') targetTileX = Math.floor(intendedPixelX / tileSize);
+            else if (pacman.dir === 'right') targetTileX = Math.ceil((intendedPixelX) / tileSize); // Use intendedPixelX, not pacman.x
+            else if (pacman.dir === 'up') targetTileY = Math.floor(intendedPixelY / tileSize);
+            else if (pacman.dir === 'down') targetTileY = Math.ceil((intendedPixelY) / tileSize); // Use intendedPixelY, not pacman.y
+
+            // Tunnel Logic - applied before wall collision for movement
+            const tunnelYTile = 9;
+            const isInTunnelCorridor = Math.floor(pacmanCenterY / tileSize) === tunnelYTile;
+
+            if (isInTunnelCorridor && pacman.dir === 'left' && pacmanCenterX - pacman.speed <= TILE_CENTER_OFFSET) { // Moving left into tunnel exit
+                 if (currentPacmanTileX === 0) { // Check if at the leftmost tile
+                    pacman.x = mazeWidthPx - tileSize; // Emerge from right, position aligned
+                    intendedPixelX = pacman.x; // Update intended for further logic if any
+                 }
+            } else if (isInTunnelCorridor && pacman.dir === 'right' && pacmanCenterX + pacman.speed >= mazeWidthPx - TILE_CENTER_OFFSET) { // Moving right into tunnel exit
+                if (currentPacmanTileX === maze[0].length -1) { // Check if at the rightmost tile
+                    pacman.x = 0; // Emerge from left, position aligned
+                    intendedPixelX = pacman.x; // Update intended for further logic if any
+                }
             }
 
-            // Simple ghost movement (random)
-            ghosts.forEach(ghost => {
-                if (ghost.isEyes) {
-                    // Eyes move back to ghost home
-                    const homeX = 10;
-                    const homeY = 9;
-                    let dx = 0, dy = 0;
-                    if (ghost.x < homeX) dx = 1;
-                    else if (ghost.x > homeX) dx = -1;
-                    if (ghost.y < homeY) dy = 1;
-                    else if (ghost.y > homeY) dy = -1;
+            // Wall Collision and Movement
+            if (pacman.dir) {
+                let canMove = true;
+                // Recalculate current tile based on potentially updated pacman.x from tunnel
+                currentPacmanTileX = Math.floor(pacman.x / tileSize);
+                currentPacmanTileY = Math.floor(pacman.y / tileSize);
 
-                    if (dx !== 0 || dy !== 0) {
-                        const gx = ghost.x + dx, gy = ghost.y + dy;
-                        if (gx >= 0 && gx < mazeWidth && gy >= 0 && gy < mazeHeight && maze[gy][gx] !== 1) {
-                            ghost.x = gx;
-                            ghost.y = gy;
-                            // Set direction for pupil movement
-                            if (dx > 0) ghost.dir = 'right';
-                            else if (dx < 0) ghost.dir = 'left';
-                            else if (dy > 0) ghost.dir = 'down';
-                            else if (dy < 0) ghost.dir = 'up';
-                        }
+                if (pacman.dir === 'left') {
+                    if (intendedPixelX < 0 || (isAlignedY && maze[currentPacmanTileY][currentPacmanTileX - 1] === 1 && intendedPixelX < currentPacmanTileX * tileSize)) {
+                        intendedPixelX = currentPacmanTileX * tileSize;
+                        if (isAlignedY && pacman.nextDir && (pacman.nextDir === 'up' || pacman.nextDir === 'down')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
+                    }
+                } else if (pacman.dir === 'right') {
+                    if (intendedPixelX + tileSize > mazeWidthPx || (isAlignedY && maze[currentPacmanTileY][currentPacmanTileX + 1] === 1 && intendedPixelX + tileSize > (currentPacmanTileX + 2) * tileSize)) {
+                        intendedPixelX = currentPacmanTileX * tileSize;
+                        if (isAlignedY && pacman.nextDir && (pacman.nextDir === 'up' || pacman.nextDir === 'down')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
+                    }
+                } else if (pacman.dir === 'up') {
+                    if (intendedPixelY < 0 || (isAlignedX && maze[currentPacmanTileY - 1][currentPacmanTileX] === 1 && intendedPixelY < currentPacmanTileY * tileSize)) {
+                        intendedPixelY = currentPacmanTileY * tileSize;
+                        if (isAlignedX && pacman.nextDir && (pacman.nextDir === 'left' || pacman.nextDir === 'right')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
+                    }
+                } else if (pacman.dir === 'down') {
+                    if (intendedPixelY + tileSize > mazeHeightPx || (isAlignedX && maze[currentPacmanTileY + 1][currentPacmanTileX] === 1 && intendedPixelY + tileSize > (currentPacmanTileY + 2) * tileSize)) {
+                        intendedPixelY = currentPacmanTileY * tileSize;
+                        if (isAlignedX && pacman.nextDir && (pacman.nextDir === 'left' || pacman.nextDir === 'right')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
+                    }
+                }
+                
+                // Check if the CENTER of pacman in its INTENDED position would be in a wall tile
+                let intendedCenterX = intendedPixelX + TILE_CENTER_OFFSET;
+                let intendedCenterY = intendedPixelY + TILE_CENTER_OFFSET;
+                let intendedNextTileX = Math.floor(intendedCenterX / tileSize);
+                let intendedNextTileY = Math.floor(intendedCenterY / tileSize);
+                
+                if (pacman.dir === 'left' || pacman.dir === 'right') {
+                     if (maze[intendedNextTileY]?.[intendedNextTileX] === 1 || maze[intendedNextTileY]?.[intendedNextTileX] === 3) {
+                        pacman.x = (pacman.dir === 'left' ? (intendedNextTileX + 1) * tileSize : intendedNextTileX * tileSize - tileSize);
+                        // pacman.dir = null; // Stop Pacman
                     } else {
-                        // Respawn as normal ghost
+                        pacman.x = intendedPixelX;
+                    }
+                } else if (pacman.dir === 'up' || pacman.dir === 'down') {
+                    if (maze[intendedNextTileY]?.[intendedNextTileX] === 1 || maze[intendedNextTileY]?.[intendedNextTileX] === 3) {
+                        pacman.y = (pacman.dir === 'up' ? (intendedNextTileY + 1) * tileSize : intendedNextTileY * tileSize - tileSize);
+                        // pacman.dir = null; // Stop Pacman
+                    } else {
+                        pacman.y = intendedPixelY;
+                    }
+                }
+
+            }
+
+            // Clamp Pac-Man's position to be within canvas boundaries (after tunnel and movement)
+            pacman.x = Math.max(0, Math.min(pacman.x, mazeWidthPx - tileSize));
+            pacman.y = Math.max(0, Math.min(pacman.y, mazeHeightPx - tileSize));
+
+            // --- DOT EATING --- (Remains largely the same, uses center of Pac-Man)
+            const eatingTileX = Math.floor((pacman.x + TILE_CENTER_OFFSET) / tileSize);
+            const eatingTileY = Math.floor((pacman.y + TILE_CENTER_OFFSET) / tileSize);
+
+            if (eatingTileX >= 0 && eatingTileX < maze[0].length &&
+                eatingTileY >= 0 && eatingTileY < maze.length) {
+                if (maze[eatingTileY][eatingTileX] === 0) { // Dot
+                    maze[eatingTileY][eatingTileX] = 2; // Mark as eaten
+                    score += 10;
+                } else if (maze[eatingTileY][eatingTileX] === 4) { // Power pellet
+                    maze[eatingTileY][eatingTileX] = 2; // Mark as eaten
+                    score += 50;
+                    powerUpActive = true;
+                    powerUpTimer = Date.now();
+                    ghosts.forEach(ghost => {
+                        if (!ghost.isEyes) { // Only make non-eaten ghosts vulnerable
+                            ghost.isVulnerable = true;
+                        }
+                    });
+                }
+            }
+
+            ghosts.forEach(ghost => {
+                const ghostTileX = Math.round(ghost.x / tileSize);
+                const ghostTileY = Math.round(ghost.y / tileSize);
+                const pacmanCurrentTileX = Math.round(pacman.x / tileSize); // Pacman's current tile
+                const pacmanCurrentTileY = Math.round(pacman.y / tileSize); // Pacman's current tile
+
+                if (ghost.isEyes) {
+                    const homeTargetX = 10 * tileSize; // Ghost home in pixels
+                    const homeTargetY = 9 * tileSize;  // Ghost home in pixels
+                    
+                    let dx = 0, dy = 0;
+                    if (ghost.x < homeTargetX) dx = ghost.speed;
+                    else if (ghost.x > homeTargetX) dx = -ghost.speed;
+                    if (ghost.y < homeTargetY) dy = ghost.speed;
+                    else if (ghost.y > homeTargetY) dy = -ghost.speed;
+
+                    // More precise check for reaching home
+                    if (Math.abs(ghost.x - homeTargetX) < ghost.speed && Math.abs(ghost.y - homeTargetY) < ghost.speed) {
+                        ghost.x = homeTargetX;
+                        ghost.y = homeTargetY;
                         ghost.isEyes = false;
-                        ghost.isVulnerable = false; // Ensure ghost is not vulnerable even if power-up is active
-                        ghost.dir = undefined; // Reset direction
+                        ghost.isVulnerable = false; // Ensure respawned ghost is not vulnerable
+                        ghost.dir = null; // Reset direction
+                    } else {
+                        // Move ghost eyes
+                        ghost.x += dx;
+                        ghost.y += dy;
+                        // Set direction for pupil movement
+                        if (dx > 0) ghost.dir = 'right'; else if (dx < 0) ghost.dir = 'left';
+                        else if (dy > 0) ghost.dir = 'down'; else if (dy < 0) ghost.dir = 'up'; else ghost.dir = null;
                     }
                 } else {
-                    const dirs = [{dx:1,dy:0}, {dx:-1,dy:0}, {dx:0,dy:1}, {dx:0,dy:-1}];
-                    const dir = dirs[Math.floor(Math.random() * 4)];
-                    const gx = ghost.x + dir.dx, gy = ghost.y + dir.dy;
-                    if (gx >= 0 && gx < mazeWidth && gy >= 0 && gy < mazeHeight && maze[gy][gx] !== 1) {
-                        ghost.x = gx;
-                        ghost.y = gy;
-                        // Set direction for pupil movement
-                        if (dir.dx > 0) ghost.dir = 'right';
-                        else if (dir.dx < 0) ghost.dir = 'left';
-                        else if (dir.dy > 0) ghost.dir = 'down';
-                        else if (dir.dy < 0) ghost.dir = 'up';
+                    // Simple random movement for now, needs to be tile-aligned for turning
+                    if ((ghost.x % tileSize < ghost.speed && ghost.x % tileSize > -ghost.speed) && 
+                        (ghost.y % tileSize < ghost.speed && ghost.y % tileSize > -ghost.speed)) { // If aligned to grid
+                        
+                        ghost.x = Math.round(ghost.x / tileSize) * tileSize; // Snap to grid
+                        ghost.y = Math.round(ghost.y / tileSize) * tileSize;
+
+                        const possibleMoves = [];
+                        const currentGhostTileX = Math.round(ghost.x / tileSize);
+                        const currentGhostTileY = Math.round(ghost.y / tileSize);
+
+                        // Check potential moves (Up, Down, Left, Right)
+                        // Up
+                        if (currentGhostTileY > 0 && maze[currentGhostTileY - 1][currentGhostTileX] !== 1 && ghost.dir !== 'down') possibleMoves.push({dx:0, dy:-ghost.speed, dir: 'up'});
+                        // Down
+                        if (currentGhostTileY < maze.length - 1 && maze[currentGhostTileY + 1][currentGhostTileX] !== 1 && ghost.dir !== 'up') possibleMoves.push({dx:0, dy:ghost.speed, dir: 'down'});
+                        // Left
+                        if (currentGhostTileX > 0 && maze[currentGhostTileY][currentGhostTileX - 1] !== 1 && ghost.dir !== 'right') possibleMoves.push({dx:-ghost.speed, dy:0, dir: 'left'});
+                        // Right
+                        if (currentGhostTileX < maze[0].length - 1 && maze[currentGhostTileY][currentGhostTileX + 1] !== 1 && ghost.dir !== 'left') possibleMoves.push({dx:ghost.speed, dy:0, dir: 'right'});
+                        
+                        if (possibleMoves.length > 0) {
+                            const chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                            ghost.currentMove = chosenMove; // Store the chosen move
+                            ghost.dir = chosenMove.dir; // Update ghost's direction property
+                        } else {
+                            // If no moves, try to reverse (e.g. dead end)
+                             if (ghost.dir === 'up') ghost.currentMove = {dx:0, dy:ghost.speed, dir: 'down'};
+                             else if (ghost.dir === 'down') ghost.currentMove = {dx:0, dy:-ghost.speed, dir: 'up'};
+                             else if (ghost.dir === 'left') ghost.currentMove = {dx:ghost.speed, dy:0, dir: 'right'};
+                             else if (ghost.dir === 'right') ghost.currentMove = {dx:-ghost.speed, dy:0, dir: 'left'};
+                             if(ghost.currentMove) ghost.dir = ghost.currentMove.dir;
+                        }
+                    }
+                    // Apply movement based on stored move
+                    if (ghost.currentMove) {
+                        ghost.x += ghost.currentMove.dx;
+                        ghost.y += ghost.currentMove.dy;
                     }
                 }
-                if (ghost.x === pacman.x && ghost.y === pacman.y && !window.gameOver) {
-                    if (powerUpActive && ghost.isVulnerable) {
+
+                // Collision with Pac-Man (pixel-based, using a small tolerance)
+                const collisionThreshold = tileSize * 0.75; // If centers are within 3/4 of a tile
+                if (Math.abs(pacman.x - ghost.x) < collisionThreshold && Math.abs(pacman.y - ghost.y) < collisionThreshold && !window.gameOver) {
+                    if (powerUpActive && ghost.isVulnerable && !ghost.isEyes) {
                         ghost.isEyes = true;
-                        ghost.isVulnerable = false;
+                        ghost.isVulnerable = false; // Can't be eaten again
                         score += 200;
+                        // No need to move ghost to home here, eye logic will handle it
                     } else if (!ghost.isEyes) {
                         lives--;
                         if (lives > 0) {
-                            pacman = { x: 10, y: 15, dir: null };
-                            ghosts = [
-                                { x: 9, y: 8, color: 'red', isEyes: false, isVulnerable: false, dir: undefined },   
-                                { x: 9, y: 9, color: 'pink', isEyes: false, isVulnerable: false, dir: undefined },  
-                                { x: 10, y: 9, color: 'cyan', isEyes: false, isVulnerable: false, dir: undefined }, 
-                                { x: 10, y: 8, color: 'orange', isEyes: false, isVulnerable: false, dir: undefined }
-                            ];
+                            // Reset Pac-Man's position (pixel-based)
+                            pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 };
+                            // Reset Ghosts' positions (pixel-based)
+                            ghosts.forEach(g => {
+                                if (g.color === 'red') { g.x = 9 * tileSize; g.y = 8 * tileSize; }
+                                else if (g.color === 'pink') { g.x = 9 * tileSize; g.y = 9 * tileSize; }
+                                else if (g.color === 'cyan') { g.x = 10 * tileSize; g.y = 9 * tileSize; }
+                                else if (g.color === 'orange') { g.x = 10 * tileSize; g.y = 8 * tileSize; }
+                                g.isEyes = false;
+                                g.isVulnerable = false;
+                                g.dir = null;
+                                g.currentMove = null;
+                                g.speed = 1.5; // Ensure speed is reset
+                            });
                             updateLivesDisplay();
                         } else {
                             window.gameOver = true;
-                            localStorage.setItem('pacmanHighScore', highScore); // Save high score on game over
+                            localStorage.setItem('pacmanHighScore', highScore);
                             alert('Game Over! Score: ' + score + '\nPress SPACE to restart');
                         }
                     }
@@ -515,14 +637,14 @@
             maze[15][19] = 4;
             
             // Reset Pac-Man
-            pacman = { x: 10, y: 15, dir: null };
+            pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 };
             
             // Reset ghosts
             ghosts = [
-                { x: 9, y: 8, color: 'red', isEyes: false, isVulnerable: false, dir: undefined },   
-                { x: 9, y: 9, color: 'pink', isEyes: false, isVulnerable: false, dir: undefined },  
-                { x: 10, y: 9, color: 'cyan', isEyes: false, isVulnerable: false, dir: undefined }, 
-                { x: 10, y: 8, color: 'orange', isEyes: false, isVulnerable: false, dir: undefined }
+                { x: 9 * tileSize, y: 8 * tileSize, color: 'red', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null },
+                { x: 9 * tileSize, y: 9 * tileSize, color: 'pink', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null },
+                { x: 10 * tileSize, y: 9 * tileSize, color: 'cyan', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null },
+                { x: 10 * tileSize, y: 8 * tileSize, color: 'orange', isEyes: false, isVulnerable: false, dir: null, speed: 1.5, currentMove: null }
             ];
             
             // Reset score
@@ -536,10 +658,12 @@
             window.gameOver = false;
             powerUpActive = false;
             powerUpTimer = 0;
+            mouthOpen = true; // Reset mouth state
+            mouthFrameCounter = 0; // Reset mouth animation counter
             
             // If the game loop was stopped, restart it
             if (!gameLoopInterval) {
-                gameLoopInterval = setInterval(() => { update(); draw(); }, 200);
+                gameLoopInterval = setInterval(() => { update(); draw(); }, 20);
             }
             
             // Update display
@@ -548,10 +672,15 @@
         
         // Game controls
         document.addEventListener('keydown', e => {
-            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') pacman.dir = 'right';
-            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') pacman.dir = 'left';
-            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') pacman.dir = 'down';
-            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') pacman.dir = 'up';
+            let newNextDir = null;
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') newNextDir = 'right';
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') newNextDir = 'left';
+            if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') newNextDir = 'down';
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') newNextDir = 'up';
+
+            if (newNextDir) {
+                pacman.nextDir = newNextDir; // Queue the direction
+            }
             
             // Check for spacebar to restart the game when game over
             if (e.key === ' ' && window.gameOver) {
@@ -559,7 +688,7 @@
             }
         });
         
-        let gameLoopInterval = setInterval(() => { update(); draw(); }, 200); // Assign to variable
+        let gameLoopInterval = setInterval(() => { update(); draw(); }, 20); // Assign to variable
         updateLivesDisplay(); // Initial display of lives
         document.getElementById('highScoreValueDisplay').textContent = highScore; // Initial display of high score
     </script>
