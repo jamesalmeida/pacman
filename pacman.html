@@ -11,7 +11,7 @@
             height: 100vh; /* Ensure full viewport height */
             margin: 0; /* Remove default body margin */
             font-family: monospace; /* Added monospace font */
-            font-size: 15px;
+            font-size: 13px;
             color: white;
         }
         #gameContainer {
@@ -56,15 +56,30 @@
         #infoAreaFooter {
             margin-top: 10px; /* Space between score and canvas */
             width: 420px; /* Match canvas width for alignment */
-            text-align: left; /* Align score to the left */
+            display: flex; /* Added for centering children */
+            flex-direction: column; /* Stack children vertically */
+            /* align-items: center; */ /* Removed to allow children to self-align */
+            justify-content: center;
         }
         #livesDisplay {
             margin-left: 20px;
             display: flex;
+            align-self: flex-start; /* Align this item to the start (left) */
         }
         .lifeIcon {
             margin-right: 5px;
         }
+        #insertCreditArea {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Centers its internal spans */
+            align-self: center; /* Center this block within the parent */
+            display: none; /* Hide by default */
+        }
+        /* Optional: if you want to style the spans specifically */
+        /* #insertCreditLabel, #insertCreditHelpText { */
+        /* styles here */
+        /* } */
         canvas { border: 1px solid black; background: black; }
     </style>
 </head>
@@ -83,6 +98,10 @@
         <canvas id="gameCanvas" width="420" height="420"></canvas>
         <div id="infoAreaFooter">
             <div id="livesDisplay"></div>
+            <div id="insertCreditArea">
+                <span id="insertCreditLabel">INSERT CREDIT</span>
+                <span id="insertCreditHelpText">(Press 1)</span>
+            </div>
         </div>
     </div>
     <script>
@@ -93,7 +112,7 @@
         let mouthOpen = true; // Track if Pac-Man's mouth is open or closed
         let mouthFrameCounter = 0; // For controlling mouth animation speed
         const MOUTH_ANIMATION_FRAMES = 10; // Toggle mouth every 10 frames (10 * 20ms = 200ms)
-        let lives = 5; // Initialize lives to 3 (including the first life)
+        let extraLives = 5; // Initialize extraLives (e.g., 5 extra lives means 6 total chances)
         let powerUpActive = false;
         let powerUpTimer = 0;
         const powerUpDuration = 10000; // 10 seconds
@@ -329,7 +348,7 @@
         function updateLivesDisplay() {
             const livesDisplay = document.getElementById('livesDisplay');
             livesDisplay.innerHTML = '';
-            for (let i = 0; i < lives; i++) {
+            for (let i = 0; i < extraLives; i++) { // Display extraLives icons
                 const canvas = document.createElement('canvas');
                 canvas.className = 'lifeIcon';
                 canvas.width = 15;
@@ -577,8 +596,8 @@
                         score += 200;
                         // No need to move ghost to home here, eye logic will handle it
                     } else if (!ghost.isEyes) {
-                        lives--;
-                        if (lives > 0) {
+                        extraLives--;
+                        if (extraLives >= 0) { // >= 0 because extraLives = 0 means 1 actual life left
                             // Reset Pac-Man's position (pixel-based)
                             pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 };
                             // Reset Ghosts' positions (pixel-based)
@@ -597,7 +616,7 @@
                         } else {
                             window.gameOver = true;
                             localStorage.setItem('pacmanHighScore', highScore);
-                            alert('Game Over! Score: ' + score + '\nPress SPACE to restart');
+                            document.getElementById('insertCreditArea').style.display = 'flex'; // Show insert credit text
                         }
                     }
                 }
@@ -617,6 +636,15 @@
             // Update the score in the dedicated HTML element
             document.getElementById('scoreValue').textContent = score;
             document.getElementById('highScoreValueDisplay').textContent = highScore; // Display high score
+
+            if (window.gameOver) {
+                ctx.fillStyle = 'red';
+                ctx.font = '30px monospace'; // Using monospace to match existing style
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle'; // For better vertical alignment
+                const yGameOverPosition = (8 * tileSize) + (tileSize / 2); // Centered in Y-tile index 8 (ghost house door)
+                ctx.fillText('GAME OVER', canvas.width / 2, yGameOverPosition);
+            }
         }
         
         function resetGame() {
@@ -650,7 +678,7 @@
             score = 0;
             
             // Reset lives
-            lives = 5;
+            extraLives = 5; // Reset to initial number of extra lives
             updateLivesDisplay();
             
             // Reset game state
@@ -659,6 +687,7 @@
             powerUpTimer = 0;
             mouthOpen = true; // Reset mouth state
             mouthFrameCounter = 0; // Reset mouth animation counter
+            document.getElementById('insertCreditArea').style.display = 'none'; // Hide insert credit text
             
             // If the game loop was stopped, restart it
             if (!gameLoopInterval) {
@@ -681,8 +710,8 @@
                 pacman.nextDir = newNextDir; // Queue the direction
             }
             
-            // Check for spacebar to restart the game when game over
-            if (e.key === ' ' && window.gameOver) {
+            // Check for '1' to restart the game when game over
+            if (e.key === '1' && window.gameOver) {
                 resetGame();
             }
         });
