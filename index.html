@@ -81,7 +81,11 @@
         /* #insertCreditLabel, #insertCreditHelpText { */
         /* styles here */
         /* } */
-        canvas { border: 1px solid black; background: black; }
+        canvas {
+            border: 1px solid black;
+            background: black;
+            /* Style dimensions will be set via JS to control apparent size */
+        }
     </style>
 </head>
 <body>
@@ -108,6 +112,18 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // Adjust for retina displays
+        const scale = window.devicePixelRatio || 1;
+        const baseWidth = 420;
+        const baseHeight = 420;
+
+        canvas.width = baseWidth * scale;
+        canvas.height = baseHeight * scale;
+        canvas.style.width = baseWidth + 'px';
+        canvas.style.height = baseHeight + 'px';
+
+        ctx.scale(scale, scale);
         
         window.gameOver = false; // Initialize gameOver flag
         let mouthOpen = true; // Track if Pac-Man's mouth is open or closed
