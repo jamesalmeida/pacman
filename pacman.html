@@ -125,6 +125,7 @@
         let energizerBlinkTimer = 0; // Timer for blinking
         const ENERGIZER_BLINK_INTERVAL = 400; // Blink every 0.5 second (500ms)
         let consecutiveGhostsEaten = 0;
+        let levelClearPauseActive = false; // Flag for level clear pause
 
         let temporaryScoreDisplays = []; // To hold scores shown on ghost eats
         const SCORE_DISPLAY_DURATION = 2000; // 2 seconds
@@ -409,7 +410,7 @@
         }
         
         function update() {
-            if (window.gameOver) return;
+            if (window.gameOver || levelClearPauseActive) return;
 
             // Check for Energizer Expiration
             if (energizerActive && (Date.now() - energizerTimer > energizerDuration)) {
@@ -598,6 +599,13 @@
                         }
                     });
                 }
+                // Check if all dots eaten after eating one
+                if (checkAllDotsEaten()) {
+                    levelClearPauseActive = true;
+                    setTimeout(() => {
+                        prepareNextLevel();
+                    }, 3000); // 3-second pause
+                }
             }
 
             ghosts.forEach(ghost => {
@@ -752,7 +760,13 @@
             document.getElementById('scoreValue').textContent = score;
             document.getElementById('highScoreValueDisplay').textContent = highScore; // Display high score
 
-            if (window.gameOver) {
+            if (levelClearPauseActive) {
+                ctx.fillStyle = 'yellow';
+                ctx.font = '30px monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('LEVEL CLEAR!', canvas.width / 2, canvas.height / 2);
+            } else if (window.gameOver) {
                 ctx.fillStyle = 'red';
                 ctx.font = '30px monospace'; // Using monospace to match existing style
                 ctx.textAlign = 'center';
@@ -805,6 +819,7 @@
             mouthOpen = true; // Reset mouth state
             mouthFrameCounter = 0; // Reset mouth animation counter
             document.getElementById('insertCreditArea').style.display = 'none'; // Hide insert credit text
+            levelClearPauseActive = false; // Ensure this is reset too
             
             // If the game loop was stopped, restart it
             if (!gameLoopInterval) {
@@ -813,6 +828,64 @@
             
             // Update display
             draw();
+        }
+        
+        function checkAllDotsEaten() {
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    if (maze[y][x] === 0 || maze[y][x] === 4) { // Check for uneaten dots or energizers
+                        return false; // Found an uneaten item
+                    }
+                }
+            }
+            return true; // All items eaten
+        }
+
+        function prepareNextLevel() {
+            // Reset maze (restore all dots)
+            for (let y = 0; y < maze.length; y++) {
+                for (let x = 0; x < maze[y].length; x++) {
+                    maze[y][x] = originalMaze[y][x];
+                }
+            }
+            // Add power pellets
+            maze[2][1] = 4;
+            maze[2][19] = 4;
+            maze[15][1] = 4;
+            maze[15][19] = 4;
+            
+            // Reset Pac-Man's position and state
+            pacman = { x: 10 * tileSize, y: 15 * tileSize, dir: null, nextDir: null, speed: 2 };
+            
+            // Reset ghosts' positions and states
+            ghosts.forEach(g => {
+                if (g.color === 'red') { g.x = 9 * tileSize; g.y = 8 * tileSize; }
+                else if (g.color === 'pink') { g.x = 9 * tileSize; g.y = 9 * tileSize; }
+                else if (g.color === 'cyan') { g.x = 10 * tileSize; g.y = 9 * tileSize; }
+                else if (g.color === 'orange') { g.x = 10 * tileSize; g.y = 8 * tileSize; }
+                g.isEyes = false;
+                g.isScared = false;
+                g.dir = null;
+                g.currentMove = null;
+                g.speed = GHOST_NORMAL_SPEED;
+            });
+            
+            // Reset relevant game state variables (but not score or lives)
+            energizerActive = false;
+            energizerTimer = 0;
+            consecutiveGhostsEaten = 0;
+            ghostFlashOn = false;
+            mouthOpen = true;
+            mouthFrameCounter = 0;
+            levelClearPauseActive = false; // End the pause
+            
+            // Ensure game loop is running (shouldn't be necessary if pause logic is correct)
+            if (!gameLoopInterval && !window.gameOver) { // Only restart if not game over
+                 gameLoopInterval = setInterval(() => { update(); draw(); }, 20);
+            }
+            
+            updateLivesDisplay(); // Lives are preserved
+            draw(); // Redraw the new level
         }
         
         // Game controls
