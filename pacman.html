@@ -113,7 +113,7 @@
         let mouthOpen = true; // Track if Pac-Man's mouth is open or closed
         let mouthFrameCounter = 0; // For controlling mouth animation speed
         const MOUTH_ANIMATION_FRAMES = 10; // Toggle mouth every 10 frames (10 * 20ms = 200ms)
-        let extraLives = 5; // Initialize extraLives (e.g., 5 extra lives means 6 total chances)
+        let extraLives = 3; // Initialize extraLives (e.g., 3 extra lives means 4 total chances)
         let energizerActive = false;
         let energizerTimer = 0;
         const energizerDuration = 10000; // 10 seconds
@@ -815,7 +815,7 @@
             score = 0;
             
             // Reset lives
-            extraLives = 5; // Reset to initial number of extra lives
+            extraLives = 3; // Reset to initial number of extra lives
             updateLivesDisplay();
             
             // Reset game state
