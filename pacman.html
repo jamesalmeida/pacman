@@ -126,6 +126,7 @@
         const ENERGIZER_BLINK_INTERVAL = 400; // Blink every 0.5 second (500ms)
         let consecutiveGhostsEaten = 0;
         let levelClearPauseActive = false; // Flag for level clear pause
+        let scoreForNextExtraLife = 10000; // Tracks the next score milestone for an extra life
 
         let temporaryScoreDisplays = []; // To hold scores shown on ghost eats
         const SCORE_DISPLAY_DURATION = 2000; // 2 seconds
@@ -739,6 +740,13 @@
             if (score > highScore) {
                 highScore = score;
             }
+
+            // Check for extra life
+            if (score >= scoreForNextExtraLife) {
+                extraLives++;
+                scoreForNextExtraLife += 10000; // Set the next target
+                updateLivesDisplay();
+            }
         }
         
         function draw() {
@@ -820,6 +828,7 @@
             mouthFrameCounter = 0; // Reset mouth animation counter
             document.getElementById('insertCreditArea').style.display = 'none'; // Hide insert credit text
             levelClearPauseActive = false; // Ensure this is reset too
+            scoreForNextExtraLife = 10000; // Reset extra life score target when starting a new level
             
             // If the game loop was stopped, restart it
             if (!gameLoopInterval) {
