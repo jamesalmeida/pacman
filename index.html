@@ -789,14 +789,14 @@
                 ctx.font = '30px monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('LEVEL CLEAR!', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('LEVEL CLEAR!', baseWidth / 2, baseHeight / 2);
             } else if (window.gameOver) {
                 ctx.fillStyle = 'red';
                 ctx.font = '30px monospace'; // Using monospace to match existing style
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle'; // For better vertical alignment
-                const yGameOverPosition = (8 * tileSize) + (tileSize / 2); // Centered in Y-tile index 8 (ghost house door)
-                ctx.fillText('GAME OVER', canvas.width / 2, yGameOverPosition);
+                const yGameOverPosition = baseHeight / 2; // Vertically centered on screen
+                ctx.fillText('GAME OVER', baseWidth / 2, yGameOverPosition);
             }
         }
         
