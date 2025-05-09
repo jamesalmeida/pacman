@@ -1,5 +1,6 @@
 # Pac-Man Game
 Demo: https://jamesalmeida.github.io/pacman/
+![Game Preview](public/pac-man-screenshot.png)
 
 ## Description
 
