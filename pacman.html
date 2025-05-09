@@ -232,9 +232,11 @@
         function drawGhosts() {
             ghosts.forEach(ghost => {
                 let ghostFillStyle = ghost.color; // Normal color by default
+                let isVulnerableLooking = false; // Flag for vulnerable appearance
 
                 if (powerUpActive && ghost.isVulnerable && !ghost.isEyes) {
                     ghostFillStyle = 'blue'; // Vulnerable ghost color
+                    isVulnerableLooking = true;
                 } else if (ghost.isEyes) {
                     ghostFillStyle = 'white'; // Eyes only when eaten
                 }
@@ -297,45 +299,69 @@
                     ctx.closePath();
                     ctx.fill(); 
 
-                    // Draw eyes
+                    // Draw eyes (and mouth if vulnerable)
                     const eyeRadius = tileSize / 8;
                     const eyeOffsetX = tileSize / 4;
-                    // Adjust eye Y position relative to the top of the ghost's bounding box (ghost.y)
-                    const eyeBaseY = ghost.y + tileSize / 2.5; // Vertically center a bit lower than true center
-                    let pupilOffsetX = 0;
-                    let pupilOffsetY = 0;
-
-                    const currentGhostDir = ghost.dir || 'right'; // Default to right if no direction
-
-                    if (currentGhostDir === 'right') {
-                        pupilOffsetX = eyeRadius / 2;
-                    } else if (currentGhostDir === 'left') {
-                        pupilOffsetX = -eyeRadius / 2;
-                    } else if (currentGhostDir === 'up') {
-                        pupilOffsetY = -eyeRadius / 2;
-                    } else if (currentGhostDir === 'down') {
-                        pupilOffsetY = eyeRadius / 2;
-                    }
-
-                    // Left eye
+                    const eyeBaseY = ghost.y + tileSize / 2.5; 
+                    
+                    // Common white part for both eyes - must be drawn for both normal and vulnerable
                     ctx.fillStyle = 'white';
+                    // Left eye (white part)
                     ctx.beginPath();
                     ctx.arc(ghost.x + eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = 'black';
-                    ctx.beginPath();
-                    ctx.arc(ghost.x + eyeOffsetX + pupilOffsetX, eyeBaseY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
-                    ctx.fill();
 
-                    // Right eye
-                    ctx.fillStyle = 'white';
+                    // Right eye (white part)
                     ctx.beginPath();
                     ctx.arc(ghost.x + tileSize - eyeOffsetX, eyeBaseY, eyeRadius, 0, Math.PI * 2);
                     ctx.fill();
-                    ctx.fillStyle = 'black';
-                    ctx.beginPath();
-                    ctx.arc(ghost.x + tileSize - eyeOffsetX + pupilOffsetX, eyeBaseY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
-                    ctx.fill();
+
+                    if (isVulnerableLooking) {
+                        // Draw vulnerable mouth (no pupils)
+                        ctx.strokeStyle = 'white'; 
+                        ctx.lineWidth = 1; // Sharp pixel line
+                        ctx.beginPath();
+                        const mouthWidth = tileSize * 0.5; // Width of the mouth
+                        const mouthSegments = 4; // Number of segments for the W-shape
+                        const mouthSegmentWidth = mouthWidth / mouthSegments;
+                        const mouthAmplitude = tileSize / 7; // Depth of the jags
+                        const mouthYLine = eyeBaseY + eyeRadius + tileSize / 8; // Y position of the mouth's top line
+
+                        const mouthStartX = ghost.x + (tileSize - mouthWidth) / 2; // Center the mouth horizontally
+
+                        ctx.moveTo(mouthStartX, mouthYLine);
+                        ctx.lineTo(mouthStartX + mouthSegmentWidth, mouthYLine + mouthAmplitude); // Jag down
+                        ctx.lineTo(mouthStartX + 2 * mouthSegmentWidth, mouthYLine); // Jag up to center line
+                        ctx.lineTo(mouthStartX + 3 * mouthSegmentWidth, mouthYLine + mouthAmplitude); // Jag down
+                        ctx.lineTo(mouthStartX + 4 * mouthSegmentWidth, mouthYLine); // Jag up to end
+                        ctx.stroke();
+                    } else {
+                        // Draw normal pupils
+                        let pupilOffsetX = 0;
+                        let pupilOffsetY = 0;
+                        const currentGhostDir = ghost.dir || 'right'; // Default to right if no direction
+
+                        if (currentGhostDir === 'right') {
+                            pupilOffsetX = eyeRadius / 2;
+                        } else if (currentGhostDir === 'left') {
+                            pupilOffsetX = -eyeRadius / 2;
+                        } else if (currentGhostDir === 'up') {
+                            pupilOffsetY = -eyeRadius / 2;
+                        } else if (currentGhostDir === 'down') {
+                            pupilOffsetY = eyeRadius / 2;
+                        }
+
+                        ctx.fillStyle = 'black';
+                        // Left pupil
+                        ctx.beginPath();
+                        ctx.arc(ghost.x + eyeOffsetX + pupilOffsetX, eyeBaseY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Right pupil
+                        ctx.beginPath();
+                        ctx.arc(ghost.x + tileSize - eyeOffsetX + pupilOffsetX, eyeBaseY + pupilOffsetY, eyeRadius / 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
             });
         }
@@ -364,6 +390,16 @@
         
         function update() {
             if (window.gameOver) return;
+
+            // Check for Power-Up Expiration
+            if (powerUpActive && (Date.now() - powerUpTimer > powerUpDuration)) {
+                powerUpActive = false;
+                powerUpTimer = 0; // Reset timer
+                ghosts.forEach(ghost => {
+                    ghost.isVulnerable = false; // Revert ghosts to normal (not vulnerable)
+                    // Note: isEyes state is handled separately when ghosts are eaten and return home
+                });
+            }
 
             // Mouth animation
             mouthFrameCounter++;
