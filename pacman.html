@@ -430,7 +430,7 @@
                         if (isAlignedY && pacman.nextDir && (pacman.nextDir === 'up' || pacman.nextDir === 'down')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
                     }
                 } else if (pacman.dir === 'right') {
-                    if (intendedPixelX + tileSize > mazeWidthPx || (isAlignedY && maze[currentPacmanTileY][currentPacmanTileX + 1] === 1 && intendedPixelX + tileSize > (currentPacmanTileX + 2) * tileSize)) {
+                    if (intendedPixelX + tileSize > mazeWidthPx || (isAlignedY && maze[currentPacmanTileY][currentPacmanTileX + 1] === 1 && intendedPixelX + tileSize > (currentPacmanTileX + 1) * tileSize)) {
                         intendedPixelX = currentPacmanTileX * tileSize;
                         if (isAlignedY && pacman.nextDir && (pacman.nextDir === 'up' || pacman.nextDir === 'down')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
                     }
@@ -440,7 +440,7 @@
                         if (isAlignedX && pacman.nextDir && (pacman.nextDir === 'left' || pacman.nextDir === 'right')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
                     }
                 } else if (pacman.dir === 'down') {
-                    if (intendedPixelY + tileSize > mazeHeightPx || (isAlignedX && maze[currentPacmanTileY + 1][currentPacmanTileX] === 1 && intendedPixelY + tileSize > (currentPacmanTileY + 2) * tileSize)) {
+                    if (intendedPixelY + tileSize > mazeHeightPx || (isAlignedX && maze[currentPacmanTileY + 1][currentPacmanTileX] === 1 && intendedPixelY + tileSize > (currentPacmanTileY + 1) * tileSize)) {
                         intendedPixelY = currentPacmanTileY * tileSize;
                         if (isAlignedX && pacman.nextDir && (pacman.nextDir === 'left' || pacman.nextDir === 'right')) { /* allow turn attempt next cycle */ } else { /* pacman.dir = null; */ }
                     }
