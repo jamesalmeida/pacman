@@ -116,6 +116,9 @@
         let powerUpActive = false;
         let powerUpTimer = 0;
         const powerUpDuration = 10000; // 10 seconds
+        let powerPelletVisible = true; // Added for blinking effect
+        let powerPelletBlinkTimer = 0; // Timer for blinking
+        const POWER_PELLET_BLINK_INTERVAL = 400; // Blink every 0.5 second (500ms)
 
         // Maze layout (1 = wall, 0 = path/dot, 2 = eaten dot, 3 = ghost spawn point, 4 = power pellet)
         const originalMaze = [
@@ -171,7 +174,7 @@
                         ctx.beginPath();
                         ctx.arc(x * tileSize + tileSize/2, y * tileSize + tileSize/2, 3, 0, Math.PI * 2);
                         ctx.fill();
-                    } else if (maze[y][x] === 4) {
+                    } else if (maze[y][x] === 4 && powerPelletVisible) {
                         ctx.fillStyle = 'white';
                         ctx.beginPath();
                         ctx.arc(x * tileSize + tileSize/2, y * tileSize + tileSize/2, 8, 0, Math.PI * 2);
@@ -367,6 +370,13 @@
             if (mouthFrameCounter >= MOUTH_ANIMATION_FRAMES) {
                 mouthOpen = !mouthOpen;
                 mouthFrameCounter = 0;
+            }
+
+            // Power Pellet Blinking Logic
+            const currentTime = Date.now();
+            if (currentTime - powerPelletBlinkTimer > POWER_PELLET_BLINK_INTERVAL) {
+                powerPelletVisible = !powerPelletVisible;
+                powerPelletBlinkTimer = currentTime;
             }
 
             const mazeWidthPx = maze[0].length * tileSize;
