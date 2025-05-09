@@ -126,6 +126,9 @@
         const ENERGIZER_BLINK_INTERVAL = 400; // Blink every 0.5 second (500ms)
         let consecutiveGhostsEaten = 0;
 
+        let temporaryScoreDisplays = []; // To hold scores shown on ghost eats
+        const SCORE_DISPLAY_DURATION = 2000; // 2 seconds
+
         // Maze layout (1 = wall, 0 = path/dot, 2 = eaten dot, 3 = ghost spawn point, 4 = Energizer)
         const originalMaze = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -445,6 +448,11 @@
                 ghostFlashOn = false; // Ensure flash is off if energizer is not active
             }
 
+            // Remove expired score displays
+            temporaryScoreDisplays = temporaryScoreDisplays.filter(
+                item => Date.now() - item.timestamp < SCORE_DISPLAY_DURATION
+            );
+
             const mazeWidthPx = maze[0].length * tileSize;
             const mazeHeightPx = maze.length * tileSize;
             const TILE_CENTER_OFFSET = tileSize / 2;
@@ -682,6 +690,13 @@
                             default: bonusPoints = 1600; // Or some other value for 5th+ ghost
                         }
                         score += bonusPoints;
+                        // Add score display
+                        temporaryScoreDisplays.push({
+                            value: bonusPoints,
+                            x: ghost.x + tileSize / 2, // Center on ghost
+                            y: ghost.y + tileSize / 2,
+                            timestamp: Date.now()
+                        });
                         ghost.speed = GHOST_NORMAL_SPEED; // Eyes move at normal speed
                         // No need to move ghost to home here, eye logic will handle it
                     } else if (!ghost.isEyes) {
@@ -723,6 +738,16 @@
             drawMaze();
             drawPacman();
             drawGhosts();
+
+            // Draw temporary score displays
+            temporaryScoreDisplays.forEach(display => {
+                ctx.fillStyle = '#00FFFF'; // Cyan color like the image
+                ctx.font = '12px monospace'; // Adjust size as needed
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(display.value.toString(), display.x, display.y);
+            });
+
             // Update the score in the dedicated HTML element
             document.getElementById('scoreValue').textContent = score;
             document.getElementById('highScoreValueDisplay').textContent = highScore; // Display high score
