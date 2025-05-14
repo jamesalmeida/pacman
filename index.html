@@ -19,6 +19,7 @@
             display: flex;
             flex-direction: column; /* Stack info area and canvas vertically */
             align-items: center; /* Center items horizontally within the container */
+            padding: 20px;
         }
         #infoAreaTop {
             margin-bottom: 10px; /* Space between score and canvas */
@@ -55,20 +56,23 @@
         }
         /* End of new score display styles */
         #infoAreaFooter {
-            margin-top: 10px; /* Space between score and canvas */
             width: 420px; /* Match canvas width for alignment */
             display: flex; /* Added for centering children */
             flex-direction: column; /* Stack children vertically */
             /* align-items: center; */ /* Removed to allow children to self-align */
             justify-content: center;
+            margin-top: 10px;
+            min-height: 35px;
         }
         #livesDisplay {
-            margin-left: 20px;
+            /* margin-left: 20px; */
             display: flex;
             align-self: flex-start; /* Align this item to the start (left) */
         }
         .lifeIcon {
-            margin-right: 5px;
+            border: none;
+            background: none;              
+            padding: 0px 5px 5px 0px;
         }
         #insertCreditArea {
             display: flex;
@@ -82,9 +86,10 @@
         /* styles here */
         /* } */
         canvas {
-            border: 1px solid black;
-            background: black;
+            /* border: 1px solid black; */
+            /* background: black; */
             /* Style dimensions will be set via JS to control apparent size */
+            /* padding: 20px; */
         }
         #githubLink {
             position: fixed; /* Position relative to the viewport */
@@ -99,10 +104,33 @@
             color: white;
             font-family: monospace;
         }
+        .crt {
+            background-color: #19191e;
+            text-shadow: 0 0 0.2em currentColor, 1px 1px rgba(255, 0, 255, 0.5), -1px -1px rgba(0, 255, 255, 0.4);
+            position: relative;
+            }
+            .crt:before, .crt:after {
+            content: "";
+            transform: translateZ(0);
+            pointer-events: none;
+            mix-blend-mode: overlay;
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            left: 0;
+            top: 0;
+            z-index: 1;
+            }
+            .crt:before {
+            background: repeating-linear-gradient(var(--crt-red) 0px, var(--crt-green) 2px, var(--crt-blue) 4px);
+            }
+            .crt:after {
+            background: repeating-linear-gradient(90deg, var(--crt-red) 1px, var(--crt-green) 2px, var(--crt-blue) 3px);
+        }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
+    <div class="crt" id="gameContainer">
         <div id="infoAreaTop">
             <div id="player1ScoreArea">
                 <span id="oneUpText">1UP</span>
@@ -117,8 +145,7 @@
         <div id="infoAreaFooter">
             <div id="livesDisplay"></div>
             <div id="insertCreditArea">
-                <span id="insertCreditLabel">INSERT CREDIT</span>
-                <span id="insertCreditHelpText">(Press 1)</span>
+                <span id="insertCreditLabel">INSERT CREDIT (Press 1)</span>
             </div>
         </div>
         <div id="githubLink"><a href="https://github.com/jamesalmeida/pacman">github.com/jamesalmeida/pacman</a></div>
