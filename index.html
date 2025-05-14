@@ -123,6 +123,16 @@
         </div>
         <div id="githubLink"><a href="https://github.com/jamesalmeida/pacman">github.com/jamesalmeida/pacman</a></div>
     </div>
+
+    <!-- Audio Elements -->
+    <audio id="gameStart" src="public/audio/game_start.mp3" preload="auto"></audio>
+    <audio id="chomp" src="public/audio/chomp.mp3" preload="auto"></audio>
+    <audio id="death" src="public/audio/death.mp3" preload="auto"></audio>
+    <audio id="ghostEaten" src="public/audio/ghost_eaten.mp3" preload="auto"></audio>
+    <audio id="powerPellet" src="public/audio/power_pellet.mp3" preload="auto"></audio>
+    <audio id="levelComplete" src="public/audio/level_complete.mp3" preload="auto"></audio>
+    <audio id="backgroundMusic" src="public/audio/background_music.mp3" preload="auto" loop></audio>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -210,6 +220,51 @@
         let score = 0;
         let highScore = parseInt(localStorage.getItem('pacmanHighScore')) || 0; // Load high score or default to 0
         
+        // Audio Management
+        const audioElements = {
+            gameStart: document.getElementById('gameStart'),
+            chomp: document.getElementById('chomp'),
+            death: document.getElementById('death'),
+            ghostEaten: document.getElementById('ghostEaten'),
+            powerPellet: document.getElementById('powerPellet'),
+            levelComplete: document.getElementById('levelComplete'),
+            backgroundMusic: document.getElementById('backgroundMusic')
+        };
+
+        // Function to play a sound
+        function playSound(soundName) {
+            const sound = audioElements[soundName];
+            if (sound) {
+                sound.currentTime = 0; // Reset to start
+                sound.play().catch(error => console.log('Audio play failed:', error));
+            }
+        }
+
+        // Function to stop a sound
+        function stopSound(soundName) {
+            const sound = audioElements[soundName];
+            if (sound) {
+                sound.pause();
+                sound.currentTime = 0;
+            }
+        }
+
+        // Function to toggle background music
+        function toggleBackgroundMusic() {
+            if (audioElements.backgroundMusic.paused) {
+                audioElements.backgroundMusic.play().catch(error => console.log('Background music play failed:', error));
+            } else {
+                audioElements.backgroundMusic.pause();
+            }
+        }
+
+        // Add keyboard shortcut for music (M key)
+        document.addEventListener('keydown', e => {
+            if (e.key.toLowerCase() === 'm') {
+                toggleBackgroundMusic();
+            }
+        });
+
         function drawMaze() {
             for (let y = 0; y < maze.length; y++) {
                 for (let x = 0; x < maze[y].length; x++) {
@@ -703,9 +758,11 @@
                 if (maze[eatingTileY][eatingTileX] === 0) { // Dot
                     maze[eatingTileY][eatingTileX] = 2; // Mark as eaten
                     score += 10;
+                    playSound('chomp');
                 } else if (maze[eatingTileY][eatingTileX] === 4) { // Energizer
                     maze[eatingTileY][eatingTileX] = 2; // Mark as eaten
                     score += 50;
+                    playSound('powerPellet');
                     energizerActive = true;
                     energizerTimer = Date.now();
                     consecutiveGhostsEaten = 0; // Reset counter when a new energizer is eaten
@@ -719,6 +776,7 @@
                 // Check if all dots eaten after eating one
                 if (checkAllDotsEaten()) {
                     levelClearPauseActive = true;
+                    playSound('levelComplete');
                     setTimeout(() => {
                         prepareNextLevel();
                     }, 3000); // 3-second pause
@@ -804,8 +862,9 @@
                 if (Math.abs(pacman.x - ghost.x) < collisionThreshold && Math.abs(pacman.y - ghost.y) < collisionThreshold && !window.gameOver) {
                     if (energizerActive && ghost.isScared && !ghost.isEyes) {
                         ghost.isEyes = true;
-                        ghost.isScared = false; // Can't be eaten again
+                        ghost.isScared = false;
                         consecutiveGhostsEaten++;
+                        playSound('ghostEaten');
                         let bonusPoints = 0;
                         switch (consecutiveGhostsEaten) {
                             case 1: bonusPoints = 200; break;
@@ -824,8 +883,8 @@
                         });
                         ghost.speed = GHOST_NORMAL_SPEED; // Eyes move at normal speed
                         // No need to move ghost to home here, eye logic will handle it
-                    } else if (!ghost.isEyes && !pacmanDeathAnimationActive) { // Added !pacmanDeathAnimationActive to prevent re-triggering
-                        // Trigger death animation instead of immediate game state change
+                    } else if (!ghost.isEyes && !pacmanDeathAnimationActive) {
+                        playSound('death');
                         pacmanDeathAnimationActive = true;
                         pacmanDeathAnimationProgress = 0;
                         // Life decrement and position resets are now handled at the end of the animation
@@ -891,6 +950,7 @@
         }
         
         function resetGame() {
+            playSound('gameStart');
             // Save high score before resetting anything else
             localStorage.setItem('pacmanHighScore', highScore);
 
@@ -1030,6 +1090,11 @@
         let gameLoopInterval = setInterval(() => { update(); draw(); }, 20); // Assign to variable
         updateLivesDisplay(); // Initial display of lives
         document.getElementById('highScoreValueDisplay').textContent = highScore; // Initial display of high score
+
+        // Start background music when game starts
+        window.addEventListener('load', () => {
+            audioElements.backgroundMusic.play().catch(error => console.log('Initial background music play failed:', error));
+        });
     </script>
 </body>
 </html>
