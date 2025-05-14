@@ -167,6 +167,8 @@
         let consecutiveGhostsEaten = 0;
         let levelClearPauseActive = false; // Flag for level clear pause
         let scoreForNextExtraLife = 10000; // Tracks the next score milestone for an extra life
+        const PINKY_TARGET_OFFSET = 4; // Pinky tries to position 4 tiles ahead of Pacman
+        const GHOST_SCATTER_MODE = false; // For future implementation of scatter/chase modes
 
         let pacmanDeathAnimationActive = false;
         let pacmanDeathAnimationProgress = 0; // Goes from 0 to 1
@@ -174,6 +176,84 @@
 
         let temporaryScoreDisplays = []; // To hold scores shown on ghost eats
         const SCORE_DISPLAY_DURATION = 2000; // 2 seconds
+
+        // Function to determine target tile for each ghost based on their color and current state
+        function getGhostTarget(ghost, pacmanX, pacmanY, pacmanDir) {
+            // If ghost is scared or eyes, it doesn't have a target tile
+            if (ghost.isScared || ghost.isEyes) {
+                return null;
+            }
+            
+            const pacmanTileX = Math.floor(pacmanX / tileSize);
+            const pacmanTileY = Math.floor(pacmanY / tileSize);
+            
+            // Convert pixel positions to tile positions
+            const ghostTileX = Math.floor(ghost.x / tileSize);
+            const ghostTileY = Math.floor(ghost.y / tileSize);
+            
+            switch (ghost.color) {
+                case 'red': // Blinky - directly chases Pacman
+                    return { x: pacmanTileX, y: pacmanTileY };
+                    
+                case 'pink': // Pinky - targets 4 tiles ahead of Pacman
+                    let targetX = pacmanTileX;
+                    let targetY = pacmanTileY;
+                    
+                    // Calculate target based on Pacman's direction
+                    if (pacmanDir === 'up') {
+                        targetY -= PINKY_TARGET_OFFSET;
+                        // Recreate the original game's bug where Up direction also shifts left by 4 tiles
+                        targetX -= PINKY_TARGET_OFFSET;
+                    } else if (pacmanDir === 'down') {
+                        targetY += PINKY_TARGET_OFFSET;
+                    } else if (pacmanDir === 'left') {
+                        targetX -= PINKY_TARGET_OFFSET;
+                    } else if (pacmanDir === 'right') {
+                        targetX += PINKY_TARGET_OFFSET;
+                    }
+                    
+                    return { x: targetX, y: targetY };
+                    
+                case 'cyan': // Inky - uses both Pacman and Blinky positions
+                    // First get position 2 tiles ahead of Pacman
+                    let pivotX = pacmanTileX;
+                    let pivotY = pacmanTileY;
+                    
+                    if (pacmanDir === 'up') {
+                        pivotY -= 2;
+                        // Recreate the same bug as Pinky
+                        pivotX -= 2;
+                    } else if (pacmanDir === 'down') {
+                        pivotY += 2;
+                    } else if (pacmanDir === 'left') {
+                        pivotX -= 2;
+                    } else if (pacmanDir === 'right') {
+                        pivotX += 2;
+                    }
+                    
+                    // Find Blinky's position
+                    const blinky = ghosts.find(g => g.color === 'red');
+                    if (!blinky) return { x: pivotX, y: pivotY }; // Fallback
+                    
+                    const blinkyTileX = Math.floor(blinky.x / tileSize);
+                    const blinkyTileY = Math.floor(blinky.y / tileSize);
+                    
+                    // Double the vector from Blinky to the pivot point
+                    const vectorX = pivotX - blinkyTileX;
+                    const vectorY = pivotY - blinkyTileY;
+                    
+                    return {
+                        x: pivotX + vectorX,
+                        y: pivotY + vectorY
+                    };
+                    
+                case 'orange': // Clyde - random movement, no specific target
+                    return null;
+                    
+                default:
+                    return null;
+            }
+        }
 
         // Maze layout (1 = wall, 0 = path/dot, 2 = eaten dot, 3 = ghost spawn point, 4 = Energizer)
         const originalMaze = [
@@ -816,7 +896,7 @@
                         else if (dy > 0) ghost.dir = 'down'; else if (dy < 0) ghost.dir = 'up'; else ghost.dir = null;
                     }
                 } else {
-                    // Simple random movement for now, needs to be tile-aligned for turning
+                    // Ghost AI movement - needs to be tile-aligned for turning
                     if ((ghost.x % tileSize < ghost.speed && ghost.x % tileSize > -ghost.speed) && 
                         (ghost.y % tileSize < ghost.speed && ghost.y % tileSize > -ghost.speed)) { // If aligned to grid
                         
@@ -829,27 +909,56 @@
 
                         // Check potential moves (Up, Down, Left, Right)
                         // Up
-                        if (currentGhostTileY > 0 && maze[currentGhostTileY - 1][currentGhostTileX] !== 1 && ghost.dir !== 'down') possibleMoves.push({dx:0, dy:-ghost.speed, dir: 'up'});
+                        if (currentGhostTileY > 0 && maze[currentGhostTileY - 1][currentGhostTileX] !== 1 && ghost.dir !== 'down') 
+                            possibleMoves.push({dx:0, dy:-ghost.speed, dir: 'up', tileX: currentGhostTileX, tileY: currentGhostTileY - 1});
                         // Down
-                        if (currentGhostTileY < maze.length - 1 && maze[currentGhostTileY + 1][currentGhostTileX] !== 1 && ghost.dir !== 'up') possibleMoves.push({dx:0, dy:ghost.speed, dir: 'down'});
+                        if (currentGhostTileY < maze.length - 1 && maze[currentGhostTileY + 1][currentGhostTileX] !== 1 && ghost.dir !== 'up') 
+                            possibleMoves.push({dx:0, dy:ghost.speed, dir: 'down', tileX: currentGhostTileX, tileY: currentGhostTileY + 1});
                         // Left
-                        if (currentGhostTileX > 0 && maze[currentGhostTileY][currentGhostTileX - 1] !== 1 && ghost.dir !== 'right') possibleMoves.push({dx:-ghost.speed, dy:0, dir: 'left'});
+                        if (currentGhostTileX > 0 && maze[currentGhostTileY][currentGhostTileX - 1] !== 1 && ghost.dir !== 'right') 
+                            possibleMoves.push({dx:-ghost.speed, dy:0, dir: 'left', tileX: currentGhostTileX - 1, tileY: currentGhostTileY});
                         // Right
-                        if (currentGhostTileX < maze[0].length - 1 && maze[currentGhostTileY][currentGhostTileX + 1] !== 1 && ghost.dir !== 'left') possibleMoves.push({dx:ghost.speed, dy:0, dir: 'right'});
+                        if (currentGhostTileX < maze[0].length - 1 && maze[currentGhostTileY][currentGhostTileX + 1] !== 1 && ghost.dir !== 'left') 
+                            possibleMoves.push({dx:ghost.speed, dy:0, dir: 'right', tileX: currentGhostTileX + 1, tileY: currentGhostTileY});
                         
                         if (possibleMoves.length > 0) {
-                            const chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                            let chosenMove;
+                            
+                            // Get target for this ghost
+                            const target = getGhostTarget(ghost, pacman.x, pacman.y, pacman.dir);
+                            
+                            if (ghost.isScared || ghost.color === 'orange' || !target) {
+                                // Random movement for scared ghosts, Clyde, or if no target
+                                chosenMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                            } else {
+                                // For other ghosts, move toward their target
+                                // Calculate distance to target for each possible move
+                                possibleMoves.forEach(move => {
+                                    move.distance = Math.sqrt(
+                                        Math.pow(move.tileX - target.x, 2) + 
+                                        Math.pow(move.tileY - target.y, 2)
+                                    );
+                                });
+                                
+                                // Sort by distance (closest first)
+                                possibleMoves.sort((a, b) => a.distance - b.distance);
+                                
+                                // Choose the move that gets closest to target
+                                chosenMove = possibleMoves[0];
+                            }
+                            
                             ghost.currentMove = chosenMove; // Store the chosen move
                             ghost.dir = chosenMove.dir; // Update ghost's direction property
                         } else {
                             // If no moves, try to reverse (e.g. dead end)
-                             if (ghost.dir === 'up') ghost.currentMove = {dx:0, dy:ghost.speed, dir: 'down'};
-                             else if (ghost.dir === 'down') ghost.currentMove = {dx:0, dy:-ghost.speed, dir: 'up'};
-                             else if (ghost.dir === 'left') ghost.currentMove = {dx:ghost.speed, dy:0, dir: 'right'};
-                             else if (ghost.dir === 'right') ghost.currentMove = {dx:-ghost.speed, dy:0, dir: 'left'};
-                             if(ghost.currentMove) ghost.dir = ghost.currentMove.dir;
+                            if (ghost.dir === 'up') ghost.currentMove = {dx:0, dy:ghost.speed, dir: 'down'};
+                            else if (ghost.dir === 'down') ghost.currentMove = {dx:0, dy:-ghost.speed, dir: 'up'};
+                            else if (ghost.dir === 'left') ghost.currentMove = {dx:ghost.speed, dy:0, dir: 'right'};
+                            else if (ghost.dir === 'right') ghost.currentMove = {dx:-ghost.speed, dy:0, dir: 'left'};
+                            if (ghost.currentMove) ghost.dir = ghost.currentMove.dir;
                         }
                     }
+                    
                     // Apply movement based on stored move
                     if (ghost.currentMove) {
                         ghost.x += ghost.currentMove.dx;
