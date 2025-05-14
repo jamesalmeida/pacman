@@ -964,6 +964,19 @@
                         ghost.x += ghost.currentMove.dx;
                         ghost.y += ghost.currentMove.dy;
                     }
+
+                    // Add tunnel teleportation for ghosts
+                    const ghostCenterX = ghost.x + tileSize/2;
+                    const ghostCenterY = ghost.y + tileSize/2;
+                    const isGhostInTunnelCorridor = Math.floor(ghostCenterY / tileSize) === tunnelYTile;
+                    
+                    if (isGhostInTunnelCorridor) {
+                        if (ghost.dir === 'left' && ghost.x < 0) {
+                            ghost.x = mazeWidthPx - tileSize; // Teleport to right side
+                        } else if (ghost.dir === 'right' && ghost.x > mazeWidthPx - tileSize) {
+                            ghost.x = 0; // Teleport to left side
+                        }
+                    }
                 }
 
                 // Collision with Pac-Man (pixel-based, using a small tolerance)
