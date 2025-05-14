@@ -132,6 +132,7 @@
     <audio id="powerPellet" src="public/audio/power_pellet.mp3" preload="auto"></audio>
     <audio id="levelComplete" src="public/audio/level_complete.mp3" preload="auto"></audio>
     <audio id="backgroundMusic" src="public/audio/background_music.mp3" preload="auto" loop></audio>
+    <audio id="extraLife" src="public/audio/extra_life.mp3" preload="auto"></audio>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -308,7 +309,8 @@
             ghostEaten: document.getElementById('ghostEaten'),
             powerPellet: document.getElementById('powerPellet'),
             levelComplete: document.getElementById('levelComplete'),
-            backgroundMusic: document.getElementById('backgroundMusic')
+            backgroundMusic: document.getElementById('backgroundMusic'),
+            extraLife: document.getElementById('extraLife')
         };
 
         // Function to play a sound
@@ -1024,6 +1026,7 @@
                 extraLives++;
                 scoreForNextExtraLife += 10000; // Set the next target
                 updateLivesDisplay();
+                playSound('extraLife'); // Play extra life sound
             }
         }
         
