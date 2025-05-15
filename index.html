@@ -210,6 +210,8 @@
         let temporaryScoreDisplays = []; // To hold scores shown on ghost eats
         const SCORE_DISPLAY_DURATION = 2000; // 2 seconds
 
+        let isPaused = false; // Added to track explicit pause state
+
         // Function to determine target tile for each ghost based on their color and current state
         function getGhostTarget(ghost, pacmanX, pacmanY, pacmanDir) {
             // If ghost is scared or eyes, it doesn't have a target tile
@@ -676,6 +678,8 @@
         }
         
         function update() {
+            if (isPaused) return; // Stop updates if game is paused
+
             if (pacmanDeathAnimationActive) {
                 pacmanDeathAnimationProgress += (20 / PACMAN_DEATH_ANIMATION_DURATION_MS); // 20ms is game loop interval
 
@@ -1117,6 +1121,13 @@
                 ctx.textBaseline = 'middle'; // For better vertical alignment
                 const yGameOverPosition = baseHeight / 2; // Vertically centered on screen
                 ctx.fillText('GAME OVER', baseWidth / 2, yGameOverPosition);
+            } else if (isPaused) { // Draw PAUSED text if the game is paused
+                ctx.fillStyle = 'white'; // Or any color for paused text
+                ctx.font = '30px monospace'; // Match GAME OVER size
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const yPausedPosition = baseHeight / 2; // Vertically centered
+                ctx.fillText('PAUSED', baseWidth / 2, yPausedPosition);
             }
         }
         
@@ -1169,6 +1180,7 @@
             
             pacmanDeathAnimationActive = false; // Reset death animation state
             pacmanDeathAnimationProgress = 0;   // Reset death animation progress
+            isPaused = false; // Ensure not paused on reset
 
             // If the game loop was stopped, restart it
             if (!gameLoopInterval) {
@@ -1249,12 +1261,62 @@
             if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') newNextDir = 'up';
 
             if (newNextDir) {
-                pacman.nextDir = newNextDir; // Queue the direction
+                // If the game is paused and an arrow key is pressed, unpause it first
+                if (isPaused && !window.gameOver) {
+                    isPaused = false; // Unset paused state
+                    gameLoopInterval = setInterval(() => { update(); draw(); }, 20);
+                    playSound('backgroundMusic'); // Resume background music
+                }
+                // Only queue the direction if the game is NOT paused (or just got unpaused)
+                if (!isPaused) {
+                    pacman.nextDir = newNextDir; // Queue the direction
+                }
             }
             
             // Check for '1' to restart the game when game over
             if (e.key === '1' && window.gameOver) {
                 resetGame();
+            }
+
+            // Check for 'P' to pause/unpause
+            if (e.key.toLowerCase() === 'p' && !window.gameOver) {
+                if (gameLoopInterval) {
+                    // Game is running, pause it
+                    isPaused = true; // Set paused state
+                    clearInterval(gameLoopInterval);
+                    gameLoopInterval = null;
+                    stopSound('backgroundMusic'); // Pause background music
+                } else {
+                    // Game is paused, resume it
+                    // Note: Arrow key press also unpauses, this handles 'P' press
+                    isPaused = false; // Unset paused state
+                    gameLoopInterval = setInterval(() => { update(); draw(); }, 20);
+                    playSound('backgroundMusic'); // Resume background music
+                }
+            }
+        });
+        
+        // Pause/resume game on tab visibility change
+        let wasGamePaused = false; // Flag to track if game was paused due to losing focus
+        
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Tab is hidden, pause the game loop
+                if (gameLoopInterval) {
+                    clearInterval(gameLoopInterval);
+                    gameLoopInterval = null; // Set to null to indicate it's paused
+                    wasGamePaused = true; // Mark that the game was paused by losing focus
+                    isPaused = true; // Set paused state due to visibility change
+                    stopSound('backgroundMusic'); // Pause background music
+                }
+            } else {
+                // Tab is visible, resume the game loop if it was paused by losing focus and game is not over
+                if (wasGamePaused && !window.gameOver) {
+                    isPaused = false; // Unset paused state
+                    gameLoopInterval = setInterval(() => { update(); draw(); }, 20);
+                    wasGamePaused = false; // Reset the flag
+                    playSound('backgroundMusic'); // Resume background music
+                }
             }
         });
         
