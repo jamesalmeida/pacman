@@ -706,6 +706,7 @@
                         });
                         updateLivesDisplay();
                     } else {
+                        stopSound('backgroundMusic');
                         window.gameOver = true;
                         localStorage.setItem('pacmanHighScore', highScore);
                         document.getElementById('insertCreditArea').style.display = 'flex';
