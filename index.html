@@ -96,13 +96,19 @@
             /* Style dimensions will be set via JS to control apparent size */
             /* padding: 20px; */
         }
-        #githubLink {
-            position: fixed; /* Position relative to the viewport */
-            bottom: 0px; /* 10px from the bottom */
-            right: 0px; /* 10px from the right */
-            z-index: 1000; /* Ensure it's above other content */
-            padding: 15px;
+        #githubLink img {
+            filter: invert(1);
+        }
+        /* Container for GitHub and X icons side by side */
+        #socialLinks {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 20px;
             border-top-left-radius: 20px;
+            display: flex;
+            gap: 20px;
         }
         a {
             color: white;
@@ -131,6 +137,9 @@
             .crt:after {
             background: repeating-linear-gradient(90deg, var(--crt-red) 1px, var(--crt-green) 2px, var(--crt-blue) 3px);
         }
+        #githubLink img {
+            filter: invert(1);
+        }
     </style>
 </head>
 <body>
@@ -152,7 +161,10 @@
                 <span id="insertCreditLabel">INSERT CREDIT (Press 1)</span>
             </div>
         </div>
-        <div class="crt" id="githubLink"><a href="https://github.com/jamesalmeida/pacman">github.com/jamesalmeida/pacman</a></div>
+        <div class="crt" id="socialLinks">
+            <a href="https://github.com/jamesalmeida/pacman" id="githubLink" target="_blank"><img src="public/logo-github.svg" alt="GitHub repository" width="30" height="30"/></a>
+            <a href="https://x.com/_JamesAlmeida" id="xLink" target="_blank"><img src="public/logo-x.svg" alt="X profile" width="30" height="30"/></a>
+        </div>
     </div>
 
     <!-- Audio Elements -->
